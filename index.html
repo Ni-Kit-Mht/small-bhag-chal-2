@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>11x11 Boxes Grid</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      grid-template-rows: repeat(11, 1fr);
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+      background-color: white;
+    }
+    .box {
+      /*border: 1px solid #ccc;*/
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .highlight {
+      background-color: red;
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+    }
+    .bhakra {
+      background-color: yellow;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    .bhakra::after {
+      content: '';
+      width: 50%;
+      height: 50%;
+      background-color: black;
+      border-radius: 50%;
+      position: absolute;
+      top: 25%;
+      left: 25%;
+    }
+    .turn-indicator {
+      outline: 2px solid blue;
+    }
+    svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Generate 121 boxes dynamically
+    const body = document.body;
+    for (let i = 0; i < 121; i++) {
+      const div = document.createElement('div');
+      div.className = `box box-${i}`;
+      div.id = `box-${i}`;
+      div.setAttribute('data-number', i);
+      if (i === 16) div.setAttribute('data-value', "1");
+      if (i === 36) div.setAttribute('data-value', "2.1");
+      if (i === 38) div.setAttribute('data-value', "2.2");
+      if (i === 40) div.setAttribute('data-value', "2.3");
+      if (i === 56) div.setAttribute('data-value', "3.1");
+      if (i === 60) div.setAttribute('data-value', "3.2");
+      if (i === 64) div.setAttribute('data-value', "3.3");
+      if (i === 89) div.setAttribute('data-value', "4.1");
+      if (i === 93) div.setAttribute('data-value', "4.2");
+      if (i === 97) div.setAttribute('data-value', "4.3");
+      if (i === 89 || i === 93 || i === 97) div.classList.add('bhakra');
+      if (i === 16) div.classList.add('highlight'); // "bhag" starts at position 1
+      //div.textContent = i; // Optional: Show the index inside the box
+      body.appendChild(div);
+    }
+    // Initial positions
+    let bhagPosition = "1"; // Example initial position of Bagh
+    let bhakraPositions = ["4.1", "4.2", "4.3"]; // Example initial positions of Bhakra
+    let bhagPosition1 = bhagPosition;
+    // Define valid moves
+    let validMoves = {
+      "1": ["2.1", "2.2", "2.3"],
+      "2.1": ["1", "2.2", "3.1"],
+      "2.2": ["1", "2.1", "2.3"],
+      "2.3": ["1", "2.2", "3.3"],
+      "3.1": ["2.1", "3.2"],
+      "3.2": ["3.1", "3.3"],
+      "3.3": ["2.3", "3.2"],
+      "4.1": ["4.2"],
+      "4.2": ["4.1", "4.3", "3.2"],
+      "4.3": ["4.2"]
+    };
+
+
+  // Function to update valid moves for Bagh based on Bhakra positions
+function updateValidMoves(bagh, bhakras) {
+  const updatedMoves = { ...validMoves }; // Clone the validMoves object
+
+  // Define all conditions
+  const conditions = [
+    {
+      bagh: "1",
+      bhakra: "2.1",
+      add: { from: "1", to: "3.1" },
+    },
+    {
+      bagh: "1",
+      bhakra: "2.3",
+      add: { from: "1", to: "3.3" },
+    },
+    {
+      bagh: "2.1",
+      bhakra: "2.2",
+      add: { from: "2.1", to: "2.3" },
+    },
+    {
+      bagh: "2.3",
+      bhakra: "2.2",
+      add: { from: "2.3", to: "2.1" },
+    },
+    {
+      bagh: "3.1",
+      bhakra: "3.2",
+      add: { from: "3.1", to: "3.3" },
+    },
+    {
+      bagh: "3.1",
+      bhakra: "2.1",
+      add: { from: "3.1", to: "1" },
+    },
+    {
+      bagh: "3.3",
+      bhakra: "3.2",
+      add: { from: "3.3", to: "3.1" },
+    },
+    {
+      bagh: "3.3",
+      bhakra: "2.3",
+      add: { from: "3.3", to: "1" },
+    },
+  ];
+
+  // Process each condition
+  conditions.forEach(({ bagh: expectedBagh, bhakra: expectedBhakra, add }) => {
+    const { from, to } = add;
+
+    if (bagh === expectedBagh && bhakras.includes(expectedBhakra)) {
+      // Add the move if not already present
+      if (!updatedMoves[from].includes(to)) {
+        updatedMoves[from].push(to);
+      }
+    } else {
+      // Remove the move if it exists
+      updatedMoves[from] = updatedMoves[from].filter((move) => move !== to);
+    }
+  });
+
+  return updatedMoves;
+}
+
+// Loop through all boxes
+const boxes = document.querySelectorAll(".box"); // Assuming all divs have the class 'box'
+
+// Example usage
+validMoves = updateValidMoves(bhagPosition, bhakraPositions);
+
+
+    let currentPlayer = 'bhag'; // 'bhag' or 'bhakra'
+    let currentPosition = null;
+
+    function removeAllEventListeners() {
+        const boxes = document.querySelectorAll('.box');
+        boxes.forEach(box => {
+            // Clone the element to remove all event listeners
+            const newBox = box.cloneNode(true);
+            box.parentNode.replaceChild(newBox, box);
+        });
+
+        console.log("All event listeners have been removed.");
+    }
+    function showGameOverMessage() {
+        // Display a popup or alert
+        //alert("Game Over!");
+
+        // Alternatively, update the UI with a game-over message
+        const gameOverElement = document.createElement('div');
+        gameOverElement.id = "game-over-message";
+        gameOverElement.textContent = "Game Over! Bhag Wins.";
+        gameOverElement.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 24px;
+            text-align: center;
+            z-index: 1000;
+        `;
+
+        document.body.appendChild(gameOverElement);
+
+        console.log("Game over message displayed.");
+    }
+    function showGameOverMessage1() {
+        // Display a popup or alert
+        //alert("Game Over!");
+
+        // Alternatively, update the UI with a game-over message
+        const gameOverElement = document.createElement('div');
+        gameOverElement.id = "game-over-message";
+        gameOverElement.textContent = "Game Over! Bhakra Wins.";
+        gameOverElement.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 24px;
+            text-align: center;
+            z-index: 1000;
+        `;
+
+        document.body.appendChild(gameOverElement);
+
+        console.log("Game over message displayed.");
+    }
+
+
+    // Highlight the current player's pieces
+    function updateTurnIndicator() {
+      document.querySelectorAll('.box').forEach(box => {
+        box.classList.remove('turn-indicator');
+      });
+      const playerClass = currentPlayer === 'bhag' ? 'highlight' : 'bhakra';
+      document.querySelectorAll(`.${playerClass}`).forEach(box => {
+        box.classList.add('turn-indicator');
+      });
+    }
+    function checkBaghPosition(bhagPositionchecker){
+      if(bhagPosition1 === "1" && bhagPositionchecker === "3.1" || bhagPosition1 === "3.1" && bhagPositionchecker === "1"){
+        document.querySelectorAll('[data-value]').forEach(box => {
+          const dataValue = box.getAttribute('data-value');
+          if (dataValue === "2.1") {
+              box.style.backgroundColor = "rgba(0,0,0,0)";
+              box.classList.remove('bhakra', 'turn-indicator');
+              removeAllEventListeners();
+              showGameOverMessage();
+          }
+        });
+      }
+      if(bhagPosition1 === "1" && bhagPositionchecker === "3.3" || bhagPosition1 === "3.3" && bhagPositionchecker === "1"){
+        document.querySelectorAll('[data-value]').forEach(box => {
+          const dataValue = box.getAttribute('data-value');
+          if (dataValue === "2.3") {
+              box.style.backgroundColor = "rgba(0,0,0,0)";
+              box.classList.remove('bhakra', 'turn-indicator');
+              removeAllEventListeners();
+              showGameOverMessage();
+          }
+        });
+      }
+      if(bhagPosition1 === "2.1" && bhagPositionchecker === "2.3" || bhagPosition1 === "2.3" && bhagPositionchecker === "2.1"){
+        document.querySelectorAll('[data-value]').forEach(box => {
+          const dataValue = box.getAttribute('data-value');
+          if (dataValue === "2.2") {
+              box.style.backgroundColor = "rgba(0,0,0,0)";
+              box.classList.remove('bhakra', 'turn-indicator');
+              removeAllEventListeners();
+              showGameOverMessage();
+          }
+        });
+      }
+      if((bhagPosition1 === "3.1" && bhagPositionchecker === "3.3" || bhagPosition1 === "3.3" && bhagPositionchecker === "3.1")){
+        document.querySelectorAll('[data-value]').forEach(box => {
+          const dataValue = box.getAttribute('data-value');
+          if (dataValue === "3.2") {
+              box.style.backgroundColor = "rgba(0,0,0,0)";
+              box.classList.remove('bhakra', 'turn-indicator');
+              removeAllEventListeners();
+              showGameOverMessage();
+          }
+        });
+      }
+    }
+
+    function checkBhakraPosition(bhagPosition, bhakraPositions) {
+      // Check if `bhakraPositions` is an array and contains exactly 3 characters
+      if (Array.isArray(bhakraPositions) && bhakraPositions.length === 3) {
+          // Scenario 1: bhakraPositions are "2.1", "2.3", "1" and bhagPosition is "2.2"
+          if (bhakraPositions.includes("2.1") && 
+              bhakraPositions.includes("2.3") && 
+              bhakraPositions.includes("1") && 
+              bhagPosition === "2.2") {
+              
+              removeAllEventListeners();
+              showGameOverMessage1();
+              return;
+          }
+
+          // Scenario 2: bhakraPositions are "3.1", "3.3" and any other, and bhagPosition is "3.2"
+          if (bhakraPositions.includes("3.1") && 
+              bhakraPositions.includes("3.3") && 
+              bhakraPositions.some(pos => pos !== "3.1" && pos !== "3.3") && 
+              bhagPosition === "3.2") {
+              
+              removeAllEventListeners();
+              showGameOverMessage1();
+              return;
+          }
+      }
+  }
+
+
+    // Add click event listeners
+    document.querySelectorAll('[data-value]').forEach(box => {
+      box.addEventListener('click', () => {
+        const value = box.getAttribute('data-value');
+        const boxBackgroundColor = getComputedStyle(box).backgroundColor; // Get background color of the box
+        if (currentPlayer === 'bhag') {
+          if (!currentPosition) {
+            if (box.classList.contains('highlight')) {
+              currentPosition = value;
+            }
+            bhagPosition1 = bhagPosition;
+          } else if (validMoves[currentPosition]?.includes(value) && boxBackgroundColor === "rgba(0, 0, 0, 0)") {
+            document.querySelector(`[data-value="${currentPosition}"]`).classList.remove('highlight');
+            currentPosition = value;
+            bhagPosition=value
+            checkBaghPosition(bhagPosition);
+            //console.log(bhagPosition1,bhagPosition);
+            box.classList.add('highlight');
+            currentPosition = null;
+            currentPlayer = 'bhakra';
+            updateTurnIndicator();
+            validMoves = updateValidMoves(bhagPosition, bhakraPositions);
+          }
+        } else if (currentPlayer === 'bhakra') {
+          if (!currentPosition) {
+            if (box.classList.contains('bhakra') && boxBackgroundColor === "rgb(255, 255, 0)") {
+              currentPosition = value;
+            }
+          }
+          else if(currentPosition && 
+            box.classList.contains('bhakra') && boxBackgroundColor === "rgb(255, 255, 0)"
+          ){
+            currentPosition = value;
+          } else if (validMoves[currentPosition]?.includes(value) && getComputedStyle(box).backgroundColor === "rgba(0, 0, 0, 0)") {
+            document.querySelector(`[data-value="${currentPosition}"]`).classList.remove('bhakra');
+            currentPosition = value;
+            box.classList.add('bhakra');
+
+            bhakraPositions.pop()
+            bhakraPositions.pop()
+            bhakraPositions.pop()
+            boxes.forEach((box) => {
+              const boxBackgroundColor = window.getComputedStyle(box).backgroundColor; // Get the background color
+              const currentPosition = box.getAttribute("data-value"); // Get the data-value attribute
+
+              // Check if the box contains the class 'bhakra' and has the specific background color
+              if (box.classList.contains("bhakra")) {
+                bhakraPositions.push(currentPosition); // Add the position to the array
+              }
+            });
+
+            // Log the positions of Bhakra
+            console.log("Bhakra Positions:", bhakraPositions);
+            checkBhakraPosition(bhagPosition, bhakraPositions);
+            currentPosition = null;
+            currentPlayer = 'bhag';
+            updateTurnIndicator();
+            validMoves = updateValidMoves(bhagPosition, bhakraPositions);
+          } else if (validMoves[currentPosition]?.includes(value) && getComputedStyle(box).backgroundColor === "rgb(255, 255, 0)") {
+              //currentPosition = null;
+              currentPosition = value;
+            }
+        }
+      });
+    });
+
+    // Create an SVG element to draw lines
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    body.appendChild(svg);
+
+    // Function to get the center of a box
+    function getBoxCenter(boxId) {
+      const box = document.getElementById(boxId);
+      const rect = box.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+    }
+
+    // Function to draw a line between two box centers
+    function drawLine(boxId1, boxId2) {
+      const start = getBoxCenter(boxId1);
+      const end = getBoxCenter(boxId2);
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", start.x);
+      line.setAttribute("y1", start.y);
+      line.setAttribute("x2", end.x);
+      line.setAttribute("y2", end.y);
+      line.setAttribute("stroke", "black");
+      line.setAttribute("stroke-width", "2");
+      svg.appendChild(line);
+    }
+
+    // Draw lines between specified box pairs
+    const connections = [
+      [16, 56], [56, 64], [64, 16],
+      [36, 40], [16, 38], [60, 93],
+      [89, 97]
+    ];
+
+// Function to clear the SVG container
+function clearSVG() {
+  while (svg.firstChild) {
+    svg.removeChild(svg.firstChild); // Remove all child elements (lines, paths, etc.)
+  }
+}
+
+// Function to draw lines between boxes
+function drawLines() {
+  connections.forEach(([box1, box2]) => {
+    drawLine(`box-${box1}`, `box-${box2}`);
+  });
+}
+
+// Draw the initial lines
+drawLines();
+
+// Listen for window resize events and redraw lines
+window.addEventListener('resize', () => {
+  // Clear the previous lines
+  clearSVG();
+
+  // Redraw lines after clearing the SVG
+  drawLines();
+});
+
+
+    // Initialize turn indicator
+    updateTurnIndicator();
+  </script>
+</body>
+</html>
